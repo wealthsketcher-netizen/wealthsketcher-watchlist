@@ -618,15 +618,29 @@ async function submitTicker() {
     }
   } else {
     try {
-      // Upsert into Supabase — increments vote count
-      await sbFetch('watchlist_votes', {
-        method: 'POST',
-        headers: { 'Prefer': 'resolution=merge-duplicates' },
-        body: JSON.stringify({ ticker, votes: 1 })
-      });
-      // Note: in production use a Postgres function for atomic increment
+      // Check if ticker already exists in Supabase
+      const existing = await sbFetch(
+        'watchlist_votes?select=id,votes&ticker=eq.' + ticker
+      );
+      if (existing && existing.length > 0) {
+        // Ticker exists — increment its vote count
+        const newVotes = (existing[0].votes || 0) + 1;
+        await sbFetch('watchlist_votes?id=eq.' + existing[0].id, {
+          method: 'PATCH',
+          headers: { 'Prefer': 'return=minimal', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ votes: newVotes })
+        });
+      } else {
+        // New ticker — insert it fresh
+        await sbFetch('watchlist_votes', {
+          method: 'POST',
+          headers: { 'Prefer': 'return=minimal', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ticker: ticker, votes: 1, pct: 0 })
+        });
+      }
     } catch(e) {
-      showToast('Submit failed — please try again', 'error');
+      console.error('Submit error:', e);
+      showToast('Submit failed — check console for details', 'error');
       btn.disabled = false; btn.textContent = '+ SUBMIT';
       return;
     }
@@ -652,11 +666,20 @@ async function castVote(ticker, btn) {
     if (row) row.votes += 1;
   } else {
     try {
-      await sbFetch('watchlist_votes?ticker=eq.' + ticker, {
-        method: 'PATCH',
-        body: JSON.stringify({ votes: '(votes + 1)' })  // use RPC in production
-      });
+      // Get current vote count then increment
+      const rows = await sbFetch(
+        'watchlist_votes?select=id,votes&ticker=eq.' + ticker
+      );
+      if (rows && rows.length > 0) {
+        const newVotes = (rows[0].votes || 0) + 1;
+        await sbFetch('watchlist_votes?id=eq.' + rows[0].id, {
+          method: 'PATCH',
+          headers: { 'Prefer': 'return=minimal', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ votes: newVotes })
+        });
+      }
     } catch(e) {
+      console.error('Vote error:', e);
       showToast('Vote failed', 'error'); return;
     }
   }
