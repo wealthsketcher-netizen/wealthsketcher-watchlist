@@ -519,6 +519,17 @@ async function loadLeaderboard() {
     }
   }
 
+  // Fetch live prices for all tickers in leaderboard
+  const tickers = data.map(r => r.ticker);
+  await fetchLivePrices(tickers);
+
+  // Merge live prices into data
+  data = data.map(row => {
+    const live = priceCache[row.ticker];
+    if (live) return { ...row, pct: live.pct, price: live.price, name: live.name };
+    return row;
+  });
+
   renderLeaderboard(data);
   renderStats(data);
   renderTonightPicks(data.slice(0,3));
@@ -550,18 +561,32 @@ function renderLeaderboard(data) {
     const rLabel   = i < 3 ? rankSymbol[i] : `#${i+1}`;
     const voted    = myVotes.includes(ticker);
 
+    const live     = priceCache[ticker] || {};
+    const livePct  = live.pct  ?? pct;
+    const livePrice = live.price;
+    const liveName  = live.name || name;
+    const livePctClass = livePct > 0 ? 'pct-up' : livePct < 0 ? 'pct-dn' : 'pct-fl';
+    const livePctSign  = livePct > 0 ? '+' : '';
+    const priceStr     = livePrice ? formatPrice(livePrice, ticker) : '';
+    const hasLive      = !!livePrice;
+
     return `
     <div class="stock-row ${rowClass}" id="row-${ticker}">
       <div class="rank ${rClass}">${rLabel}</div>
       <div class="stock-info">
         <div class="stock-ticker">${ticker}</div>
-        <div class="stock-name">${name}</div>
+        <div class="stock-name">${liveName}</div>
       </div>
       <div class="vote-section">
         <button class="vote-btn ${voted?'voted':''}" onclick="castVote('${ticker}', this)" title="Upvote">▲</button>
         <div class="vote-count" id="votes-${ticker}">${votes}</div>
       </div>
-      <div class="pct-badge ${pctClass}">${pctSign}${pct.toFixed(2)}%</div>
+      <div style="text-align:right;min-width:90px;">
+        ${priceStr ? `<div style="font-family:var(--mono);font-size:12px;color:var(--text);font-weight:700;">${priceStr}</div>` : ''}
+        <div class="pct-badge ${livePctClass}" style="margin-top:${priceStr?'3px':'0'};">
+          ${hasLive ? livePctSign + livePct.toFixed(2) + '%' : '<span style="opacity:.4">loading...</span>'}
+        </div>
+      </div>
       <div class="bar-wrap"><div class="bar-fill" style="width:${barW}%"></div></div>
     </div>`;
   }).join('');
@@ -592,6 +617,102 @@ function renderTonightPicks(top3) {
   ).join('');
 }
 
+
+
+// ── Live price cache ───────────────────────────────────────────────
+// Stores { ticker: { price, pct, name, updatedAt } }
+const priceCache = {};
+let priceLastFetched = 0;
+const PRICE_TTL_MS = 5 * 60 * 1000;   // refresh every 5 minutes
+
+async function fetchLivePrices(tickers) {
+  if (!tickers.length) return;
+  const now = Date.now();
+  // Only re-fetch if cache is stale
+  if (now - priceLastFetched < PRICE_TTL_MS && tickers.every(t => priceCache[t])) return;
+
+  // Yahoo Finance: fetch each ticker (parallel, no API key needed)
+  const fetches = tickers.map(async ticker => {
+    try {
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=1d`;
+      const res = await fetch(url);
+      if (!res.ok) return;
+      const data = await res.json();
+      const meta = data?.chart?.result?.[0]?.meta;
+      if (!meta) return;
+      const price     = meta.regularMarketPrice || 0;
+      const prevClose = meta.chartPreviousClose || meta.previousClose || price;
+      const pct       = prevClose ? ((price - prevClose) / prevClose * 100) : 0;
+      const name      = meta.longName || meta.shortName || NAMES[ticker] || ticker;
+      priceCache[ticker] = {
+        price: price,
+        pct:   +pct.toFixed(2),
+        name:  name.replace(/, Inc\.?$|, Corp\.?$|, Ltd\.?$|, LLC\.?$/i, '').trim(),
+        updatedAt: now,
+      };
+    } catch(e) {
+      // Silently fail — keep old cache value or show 0.00%
+    }
+  });
+
+  await Promise.all(fetches);
+  priceLastFetched = now;
+
+  // Persist updated prices back to Supabase (batched)
+  if (!DEMO_MODE) {
+    tickers.forEach(async ticker => {
+      const cached = priceCache[ticker];
+      if (!cached) return;
+      try {
+        await sbFetch('watchlist_votes?ticker=eq.' + ticker, {
+          method: 'PATCH',
+          headers: { 'Prefer': 'return=minimal', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pct: cached.pct })
+        });
+      } catch(e) { /* non-critical — display still works from cache */ }
+    });
+  }
+}
+
+function formatPrice(price, ticker) {
+  if (!price) return '';
+  if (ticker === 'BTC-USD') return '$' + price.toLocaleString('en-US', {maximumFractionDigits: 0});
+  if (price >= 1000)        return '$' + price.toLocaleString('en-US', {maximumFractionDigits: 0});
+  return '$' + price.toFixed(2);
+}
+
+// ── Validate ticker against Yahoo Finance ─────────────────────────
+async function validateTicker(ticker) {
+  // First check our known list instantly (no API call needed)
+  if (NAMES[ticker]) return { valid: true, name: NAMES[ticker], pct: 0 };
+
+  // For unknown tickers, call Yahoo Finance quote API
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1d`;
+    const res  = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    });
+    if (!res.ok) return { valid: false };
+    const data = await res.json();
+    const meta = data?.chart?.result?.[0]?.meta;
+    if (!meta || !meta.regularMarketPrice) return { valid: false };
+
+    const price    = meta.regularMarketPrice;
+    const prevClose = meta.chartPreviousClose || meta.previousClose || price;
+    const pct      = prevClose ? ((price - prevClose) / prevClose * 100) : 0;
+    const name     = meta.longName || meta.shortName || ticker;
+
+    const cleanName = name.replace(/, Inc\.?$|, Corp\.?$|, Ltd\.?$|, LLC\.?$/i, '').trim();
+    priceCache[ticker] = { price, pct: +pct.toFixed(2), name: cleanName, updatedAt: Date.now() };
+    return { valid: true, name: cleanName, pct: +pct.toFixed(2), price };
+  } catch(e) {
+    // If Yahoo Finance is unreachable, fall back to allowing it
+    // (better UX than blocking valid tickers due to network issues)
+    console.warn('Yahoo validation failed for', ticker, e.message);
+    return { valid: true, name: ticker, pct: 0 };
+  }
+}
+
 // ── Submit ticker ──────────────────────────────────────────────────
 async function submitTicker() {
   const input  = document.getElementById('tickerInput');
@@ -610,7 +731,22 @@ async function submitTicker() {
     showToast('Max 5 submissions per day', 'error'); return;
   }
 
-  btn.disabled = true; btn.textContent = 'ADDING...';
+  btn.disabled = true; btn.textContent = 'CHECKING...';
+
+  // ── Step 1: Validate ticker is a real stock ──────────────────────
+  if (!DEMO_MODE) {
+    const check = await validateTicker(ticker);
+    if (!check.valid) {
+      showToast(`"${ticker}" is not a valid stock ticker`, 'error');
+      btn.disabled = false; btn.textContent = '+ SUBMIT';
+      return;
+    }
+    // Store validated name and price % for display
+    window._validatedName = check.name;
+    window._validatedPct  = check.pct;
+  }
+
+  btn.textContent = 'ADDING...';
 
   if (DEMO_MODE) {
     await new Promise(r => setTimeout(r, 600));
@@ -623,6 +759,7 @@ async function submitTicker() {
     }
   } else {
     try {
+      const validPct  = window._validatedPct  || 0;
       // Check if ticker already exists in Supabase
       const existing = await sbFetch(
         'watchlist_votes?select=id,votes&ticker=eq.' + ticker
@@ -633,14 +770,14 @@ async function submitTicker() {
         await sbFetch('watchlist_votes?id=eq.' + existing[0].id, {
           method: 'PATCH',
           headers: { 'Prefer': 'return=minimal', 'Content-Type': 'application/json' },
-          body: JSON.stringify({ votes: newVotes })
+          body: JSON.stringify({ votes: newVotes, pct: validPct })
         });
       } else {
-        // New ticker — insert it fresh
+        // New ticker — insert it with real price data
         await sbFetch('watchlist_votes', {
           method: 'POST',
           headers: { 'Prefer': 'return=minimal', 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ticker: ticker, votes: 1, pct: 0 })
+          body: JSON.stringify({ ticker: ticker, votes: 1, pct: validPct })
         });
       }
     } catch(e) {
@@ -656,7 +793,7 @@ async function submitTicker() {
 
   input.value = '';
   btn.disabled = false; btn.textContent = '+ SUBMIT';
-  showToast(`${ticker} submitted! ✓`, 'success');
+  showToast(`${ticker} added to watchlist! ✓`, 'success');
   await loadLeaderboard();
 }
 
@@ -759,7 +896,7 @@ if (DEMO_MODE) {
 // ── Init ───────────────────────────────────────────────────────────
 updateMarketStatus();
 loadLeaderboard();
-setInterval(loadLeaderboard, 30000);      // refresh every 30s
+setInterval(loadLeaderboard, 60000);      // refresh every 60s (prices cache 5 min)
 setInterval(updateMarketStatus, 60000);   // check market status every min
 
 </script>
