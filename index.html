@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WealthSketcher — Community Watchlist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ── Reset & Base ─────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #080C12;
+    --bg2:       #0D1219;
+    --card:      #111720;
+    --card2:     #161E2A;
+    --border:    #1E2A3A;
+    --border2:   #253040;
+    --blue:      #38BDF8;
+    --blue-dim:  #1E3A50;
+    --green:     #34D399;
+    --green-dim: #0D3020;
+    --red:       #F87171;
+    --red-dim:   #3A1010;
+    --amber:     #FBBF24;
+    --text:      #E2E8F0;
+    --muted:     #64748B;
+    --muted2:    #3A4A5C;
+    --mono:      'Space Mono', monospace;
+    --sans:      'DM Sans', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Background grid ───────────────────────────────────── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(56,189,248,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(56,189,248,.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── Layout ────────────────────────────────────────────── */
+  .wrap { max-width: 720px; margin: 0 auto; padding: 0 20px; position: relative; z-index: 1; }
+
+  /* ── Header ────────────────────────────────────────────── */
+  header {
+    border-bottom: 1px solid var(--border);
+    background: rgba(8,12,18,.9);
+    backdrop-filter: blur(12px);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 0;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 13px; font-weight: 700;
+    color: var(--blue); text-decoration: none; letter-spacing: .03em;
+  }
+  .logo-mark {
+    width: 28px; height: 28px; border-radius: 6px;
+    border: 1.5px solid var(--blue);
+    background: var(--blue-dim);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; color: var(--blue);
+  }
+  .live-badge {
+    display: flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 10px; color: var(--green);
+    background: var(--green-dim); border: 1px solid var(--green);
+    border-radius: 4px; padding: 4px 8px; letter-spacing: .08em;
+  }
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .5; transform: scale(.85); }
+  }
+
+  /* ── Hero ──────────────────────────────────────────────── */
+  .hero {
+    padding: 48px 0 32px;
+    text-align: center;
+  }
+  .hero-tag {
+    display: inline-block;
+    font-family: var(--mono); font-size: 10px; letter-spacing: .12em;
+    color: var(--blue); background: var(--blue-dim);
+    border: 1px solid var(--border2); border-radius: 4px;
+    padding: 5px 12px; margin-bottom: 20px; text-transform: uppercase;
+  }
+  .hero h1 {
+    font-size: clamp(26px, 5vw, 38px);
+    font-weight: 600; line-height: 1.2;
+    color: var(--text); margin-bottom: 14px;
+    letter-spacing: -.02em;
+  }
+  .hero h1 span { color: var(--blue); }
+  .hero p {
+    font-size: 15px; color: var(--muted); line-height: 1.7;
+    max-width: 480px; margin: 0 auto 28px;
+  }
+  .hero-stats {
+    display: flex; justify-content: center; gap: 32px;
+    padding: 20px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 10px;
+    margin-bottom: 36px;
+  }
+  .hero-stat { text-align: center; }
+  .hero-stat-val {
+    font-family: var(--mono); font-size: 22px; font-weight: 700;
+    color: var(--blue); display: block;
+  }
+  .hero-stat-label { font-size: 11px; color: var(--muted); margin-top: 2px; letter-spacing: .05em; }
+
+  /* ── Input section ─────────────────────────────────────── */
+  .input-section {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px; margin-bottom: 28px;
+  }
+  .input-label {
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    letter-spacing: .1em; text-transform: uppercase; margin-bottom: 12px;
+    display: block;
+  }
+  .input-row { display: flex; gap: 10px; }
+  .ticker-input {
+    flex: 1; background: var(--bg2);
+    border: 1.5px solid var(--border2);
+    border-radius: 8px; padding: 12px 16px;
+    font-family: var(--mono); font-size: 16px; font-weight: 700;
+    color: var(--text); letter-spacing: .08em; text-transform: uppercase;
+    outline: none; transition: border-color .2s;
+  }
+  .ticker-input::placeholder { color: var(--muted2); font-weight: 400; }
+  .ticker-input:focus { border-color: var(--blue); }
+  .submit-btn {
+    background: var(--blue); color: #000; border: none;
+    border-radius: 8px; padding: 12px 22px;
+    font-family: var(--mono); font-size: 13px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+    transition: opacity .15s, transform .1s;
+    letter-spacing: .04em;
+  }
+  .submit-btn:hover { opacity: .9; }
+  .submit-btn:active { transform: scale(.97); }
+  .submit-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  .input-hint {
+    margin-top: 10px; font-size: 12px; color: var(--muted);
+  }
+  .input-hint span { color: var(--blue); font-family: var(--mono); }
+
+  /* Feedback messages */
+  .msg { font-size: 13px; margin-top: 10px; font-family: var(--mono); display: none; }
+  .msg.ok  { color: var(--green); }
+  .msg.err { color: var(--red); }
+
+  /* ── Leaderboard ───────────────────────────────────────── */
+  .section-header {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .section-title {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    color: var(--muted); letter-spacing: .12em; text-transform: uppercase;
+  }
+  .section-note { font-size: 11px; color: var(--muted2); }
+
+  .leaderboard { display: flex; flex-direction: column; gap: 8px; margin-bottom: 32px; }
+
+  .stock-row {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px;
+    display: grid;
+    grid-template-columns: 28px 1fr auto auto;
+    align-items: center; gap: 12px;
+    transition: border-color .2s, background .2s;
+    cursor: default;
+  }
+  .stock-row:hover { border-color: var(--border2); background: var(--card2); }
+  .stock-row.top1 { border-color: #FCD34D44; }
+  .stock-row.top2 { border-color: #94A3B844; }
+  .stock-row.top3 { border-color: #CD7C3244; }
+
+  .rank {
+    font-family: var(--mono); font-size: 12px; color: var(--muted2);
+    text-align: center; font-weight: 700;
+  }
+  .rank.gold   { color: #FCD34D; }
+  .rank.silver { color: #94A3B8; }
+  .rank.bronze { color: #CD7C32; }
+
+  .stock-info { min-width: 0; }
+  .stock-ticker {
+    font-family: var(--mono); font-size: 15px; font-weight: 700;
+    color: var(--text); letter-spacing: .04em;
+  }
+  .stock-name { font-size: 11px; color: var(--muted); margin-top: 1px; }
+
+  .vote-section { display: flex; align-items: center; gap: 8px; }
+  .vote-btn {
+    background: var(--bg2); border: 1px solid var(--border2);
+    color: var(--muted); border-radius: 6px;
+    width: 28px; height: 28px;
+    font-size: 14px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+  }
+  .vote-btn:hover { border-color: var(--blue); color: var(--blue); }
+  .vote-btn.voted { background: var(--blue-dim); border-color: var(--blue); color: var(--blue); }
+  .vote-count {
+    font-family: var(--mono); font-size: 13px; font-weight: 700;
+    color: var(--text); min-width: 28px; text-align: center;
+  }
+
+  .pct-badge {
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    padding: 4px 8px; border-radius: 5px; letter-spacing: .03em;
+    white-space: nowrap;
+  }
+  .pct-up { background: var(--green-dim); color: var(--green); }
+  .pct-dn { background: var(--red-dim);   color: var(--red); }
+  .pct-fl { background: var(--card2);     color: var(--muted); }
+
+  /* Progress bar per row */
+  .bar-wrap { grid-column: 1 / -1; margin-top: -4px; height: 2px; background: var(--border); border-radius: 1px; }
+  .bar-fill  { height: 100%; border-radius: 1px; background: var(--blue); transition: width 1s ease; }
+
+  /* ── "In tonight's video" callout ─────────────────────── */
+  .tonight-box {
+    background: linear-gradient(135deg, #0D1A28, #0F1F18);
+    border: 1px solid #1E3A28; border-radius: 10px;
+    padding: 18px 20px; margin-bottom: 28px;
+    display: flex; align-items: flex-start; gap: 14px;
+  }
+  .tonight-icon {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: var(--green-dim); border: 1px solid var(--green);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+  .tonight-text h3 { font-size: 13px; font-weight: 600; color: var(--green); margin-bottom: 4px; }
+  .tonight-text p  { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .tonight-tickers {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px;
+  }
+  .tonight-ticker {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    background: var(--green-dim); color: var(--green);
+    border: 1px solid var(--green); border-radius: 4px;
+    padding: 3px 8px; letter-spacing: .06em;
+  }
+
+  /* ── CTA bar ───────────────────────────────────────────── */
+  .cta-bar {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px 20px;
+    text-align: center; margin-bottom: 48px;
+  }
+  .cta-bar p { font-size: 14px; color: var(--muted); margin-bottom: 16px; line-height: 1.6; }
+  .yt-btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: #FF0000; color: #fff; border-radius: 8px;
+    padding: 12px 24px; text-decoration: none;
+    font-weight: 600; font-size: 14px;
+    transition: opacity .15s, transform .1s;
+  }
+  .yt-btn:hover { opacity: .9; transform: translateY(-1px); }
+  .yt-btn svg { width: 18px; height: 18px; fill: white; }
+
+  /* ── Toast ─────────────────────────────────────────────── */
+  .toast {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--card2); border: 1px solid var(--border2);
+    color: var(--text); border-radius: 8px;
+    padding: 12px 20px; font-size: 13px;
+    opacity: 0; transition: all .3s ease;
+    pointer-events: none; white-space: nowrap; z-index: 200;
+    font-family: var(--mono);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.success { border-color: var(--green); color: var(--green); }
+  .toast.error   { border-color: var(--red);   color: var(--red); }
+
+  /* ── Footer ────────────────────────────────────────────── */
+  footer {
+    border-top: 1px solid var(--border); padding: 20px 0;
+    text-align: center;
+  }
+  footer p { font-size: 11px; color: var(--muted2); line-height: 1.8; }
+  footer a { color: var(--muted); text-decoration: none; }
+  footer a:hover { color: var(--blue); }
+
+  /* ── Loading skeleton ──────────────────────────────────── */
+  .skeleton {
+    background: linear-gradient(90deg, var(--card) 25%, var(--card2) 50%, var(--card) 75%);
+    background-size: 200% 100%; animation: shimmer 1.5s infinite;
+    border-radius: 6px;
+  }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+  /* ── Responsive ────────────────────────────────────────── */
+  @media (max-width: 480px) {
+    .hero-stats { gap: 20px; }
+    .input-row  { flex-direction: column; }
+    .submit-btn { width: 100%; justify-content: center; }
+    .stock-row  { grid-template-columns: 24px 1fr auto; }
+    .pct-badge  { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <div class="wrap">
+    <div class="header-inner">
+      <a class="logo" href="#">
+        <div class="logo-mark">W</div>
+        WEALTHSKETCHER
+      </a>
+      <div class="live-badge">
+        <div class="live-dot"></div>
+        MARKET OPEN
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- Hero -->
+<div class="wrap">
+  <div class="hero">
+    <div class="hero-tag">Community Watchlist</div>
+    <h1>Which stock should we<br><span>cover tonight?</span></h1>
+    <p>Submit your ticker. Top 3 voted stocks appear in tonight's WealthSketcher daily market close video — published at 7 PM ET.</p>
+
+    <div class="hero-stats">
+      <div class="hero-stat">
+        <span class="hero-stat-val" id="stat-submissions">--</span>
+        <div class="hero-stat-label">Submissions Today</div>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-val" id="stat-tickers">--</span>
+        <div class="hero-stat-label">Unique Tickers</div>
+      </div>
+      <div class="hero-stat">
+        <span class="hero-stat-val" id="stat-closes">--</span>
+        <div class="hero-stat-label">Min Until Close</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="input-section">
+    <label class="input-label" for="tickerInput">Submit a stock ticker</label>
+    <div class="input-row">
+      <input
+        id="tickerInput"
+        class="ticker-input"
+        type="text"
+        placeholder="e.g. NVDA, AAPL, TSLA"
+        maxlength="10"
+        autocomplete="off"
+        autocorrect="off"
+        spellcheck="false"
+      >
+      <button class="submit-btn" id="submitBtn" onclick="submitTicker()">
+        + SUBMIT
+      </button>
+    </div>
+    <div class="input-hint">
+      Valid US stock ticker · e.g. <span>NVDA</span> · <span>META</span> · <span>GOOGL</span> · <span>TSLA</span>
+    </div>
+  </div>
+
+  <!-- Tonight's picks -->
+  <div class="tonight-box">
+    <div class="tonight-icon">📺</div>
+    <div class="tonight-text">
+      <h3>Featured in tonight's video</h3>
+      <p>The 3 most-voted tickers are automatically pulled into the pipeline at 4:30 PM ET and covered in that evening's market close.</p>
+      <div class="tonight-tickers" id="tonightTickers">
+        <span class="tonight-ticker" style="opacity:.4">Loading...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaderboard -->
+  <div class="section-header">
+    <div class="section-title">Today's Leaderboard</div>
+    <div class="section-note" id="lastUpdate">Updating...</div>
+  </div>
+  <div class="leaderboard" id="leaderboard">
+    <!-- Skeleton rows while loading -->
+    <div class="stock-row"><div class="rank">—</div><div><div class="skeleton" style="width:60px;height:14px;margin-bottom:4px;"></div><div class="skeleton" style="width:90px;height:10px;"></div></div><div></div><div></div></div>
+    <div class="stock-row"><div class="rank">—</div><div><div class="skeleton" style="width:60px;height:14px;margin-bottom:4px;"></div><div class="skeleton" style="width:90px;height:10px;"></div></div><div></div><div></div></div>
+    <div class="stock-row"><div class="rank">—</div><div><div class="skeleton" style="width:60px;height:14px;margin-bottom:4px;"></div><div class="skeleton" style="width:90px;height:10px;"></div></div><div></div><div></div></div>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta-bar">
+    <p>Watch tonight's video to see the community watchlist results — and subscribe so you never miss a market close.</p>
+    <a class="yt-btn" href="https://youtube.com/@WealthSketcher" target="_blank">
+      <svg viewBox="0 0 24 24"><path d="M23.5 6.2a3 3 0 00-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.5A3 3 0 00.5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 002.1 2.1c1.9.5 9.4.5 9.4.5s7.5 0 9.4-.5a3 3 0 002.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8zM9.7 15.5V8.5l6.3 3.5-6.3 3.5z"/></svg>
+      Subscribe on YouTube
+    </a>
+  </div>
+
+  <footer>
+    <p>
+      WealthSketcher Community Watchlist · Data resets daily at midnight ET<br>
+      <a href="https://youtube.com/@WealthSketcher" target="_blank">YouTube</a> ·
+      <a href="#">Disclaimer</a> ·
+      Not financial advice
+    </p>
+  </footer>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     JAVASCRIPT
+     Two modes:
+       DEMO MODE  — works immediately with no backend (for testing)
+       LIVE MODE  — replace SUPABASE_URL and SUPABASE_KEY below
+                    and uncomment the live functions
+════════════════════════════════════════════════════════════ -->
+<script>
+
+// ── CONFIG: Replace these when you set up Supabase ────────────────
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';         // e.g. https://abc123.supabase.co
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';    // from Supabase dashboard → API
+const DEMO_MODE    = (SUPABASE_URL === 'YOUR_SUPABASE_URL');  // auto-detects
+
+// Known company names for common tickers
+const NAMES = {
+  NVDA:'Nvidia',AAPL:'Apple',MSFT:'Microsoft',GOOGL:'Alphabet',
+  GOOG:'Alphabet',META:'Meta',AMZN:'Amazon',TSLA:'Tesla',
+  AMD:'AMD',AVGO:'Broadcom',PLTR:'Palantir',ARM:'Arm Holdings',
+  NFLX:'Netflix',CRM:'Salesforce',ORCL:'Oracle',INTC:'Intel',
+  JPM:'JPMorgan',V:'Visa',MA:'Mastercard',WMT:'Walmart',
+  LLY:'Eli Lilly',JNJ:'Johnson & Johnson',XOM:'ExxonMobil',
+  BAC:'Bank of America',DIS:'Disney',PYPL:'PayPal',
+  UBER:'Uber',LYFT:'Lyft',COIN:'Coinbase',HOOD:'Robinhood',
+  SOFI:'SoFi',SMCI:'Super Micro',SOUN:'SoundHound',
+  RIVN:'Rivian',LCID:'Lucid',NIO:'NIO',BABA:'Alibaba',
+  SPY:'S&P 500 ETF',QQQ:'NASDAQ ETF',DIA:'Dow ETF',
+};
+
+// Demo data — simulates what Supabase would return
+let demoData = [
+  {ticker:'NVDA', votes:847, pct:+4.21, submitted_at: new Date()},
+  {ticker:'AAPL', votes:623, pct:+1.27, submitted_at: new Date()},
+  {ticker:'TSLA', votes:590, pct:-1.51, submitted_at: new Date()},
+  {ticker:'META', votes:410, pct:+0.93, submitted_at: new Date()},
+  {ticker:'AMD',  votes:388, pct:+3.65, submitted_at: new Date()},
+  {ticker:'PLTR', votes:301, pct:+2.10, submitted_at: new Date()},
+  {ticker:'MSFT', votes:278, pct:+0.79, submitted_at: new Date()},
+  {ticker:'GOOGL',votes:240, pct:+1.05, submitted_at: new Date()},
+];
+
+let myVotes = JSON.parse(localStorage.getItem('ws_votes') || '[]');
+let mySubmissions = JSON.parse(localStorage.getItem('ws_submissions') || '[]');
+
+// ── Supabase helpers ───────────────────────────────────────────────
+async function sbFetch(path, opts={}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=representation',
+      ...opts.headers
+    },
+    ...opts
+  });
+  if (!res.ok) throw new Error(`Supabase ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+// ── Load leaderboard ───────────────────────────────────────────────
+async function loadLeaderboard() {
+  let data;
+
+  if (DEMO_MODE) {
+    // Use demo data with slight random jitter to feel live
+    data = demoData.map(d => ({...d, votes: d.votes + Math.floor(Math.random()*3)}));
+    demoData = data;
+  } else {
+    // LIVE: pull from Supabase
+    // Table: watchlist_votes (ticker TEXT, votes INT, pct NUMERIC, updated_at TIMESTAMPTZ)
+    try {
+      data = await sbFetch('watchlist_votes?select=*&order=votes.desc&limit=20');
+    } catch(e) {
+      showToast('Could not load leaderboard', 'error');
+      return;
+    }
+  }
+
+  renderLeaderboard(data);
+  renderStats(data);
+  renderTonightPicks(data.slice(0,3));
+  updateLastUpdated();
+}
+
+// ── Render leaderboard ─────────────────────────────────────────────
+function renderLeaderboard(data) {
+  const lb = document.getElementById('leaderboard');
+  if (!data.length) {
+    lb.innerHTML = '<p style="text-align:center;color:var(--muted);padding:32px;font-size:13px;">No submissions yet today — be the first!</p>';
+    return;
+  }
+
+  const maxVotes = data[0]?.votes || 1;
+  const rankClass = ['gold','silver','bronze'];
+  const rankSymbol = ['#1','#2','#3'];
+
+  lb.innerHTML = data.map((row, i) => {
+    const pct      = row.pct ?? 0;
+    const ticker   = row.ticker;
+    const name     = NAMES[ticker] || ticker;
+    const votes    = row.votes || 0;
+    const barW     = Math.round((votes / maxVotes) * 100);
+    const pctClass = pct > 0 ? 'pct-up' : pct < 0 ? 'pct-dn' : 'pct-fl';
+    const pctSign  = pct > 0 ? '+' : '';
+    const rowClass = i < 3 ? `top${i+1}` : '';
+    const rClass   = i < 3 ? rankClass[i] : '';
+    const rLabel   = i < 3 ? rankSymbol[i] : `#${i+1}`;
+    const voted    = myVotes.includes(ticker);
+
+    return `
+    <div class="stock-row ${rowClass}" id="row-${ticker}">
+      <div class="rank ${rClass}">${rLabel}</div>
+      <div class="stock-info">
+        <div class="stock-ticker">${ticker}</div>
+        <div class="stock-name">${name}</div>
+      </div>
+      <div class="vote-section">
+        <button class="vote-btn ${voted?'voted':''}" onclick="castVote('${ticker}', this)" title="Upvote">▲</button>
+        <div class="vote-count" id="votes-${ticker}">${votes}</div>
+      </div>
+      <div class="pct-badge ${pctClass}">${pctSign}${pct.toFixed(2)}%</div>
+      <div class="bar-wrap"><div class="bar-fill" style="width:${barW}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ── Stats ──────────────────────────────────────────────────────────
+function renderStats(data) {
+  const totalVotes = data.reduce((s, r) => s + (r.votes||0), 0);
+  document.getElementById('stat-submissions').textContent = totalVotes.toLocaleString();
+  document.getElementById('stat-tickers').textContent = data.length;
+
+  // Minutes until 4:30 PM ET
+  const now = new Date();
+  const et  = new Date(now.toLocaleString('en-US', {timeZone: 'America/New_York'}));
+  const close = new Date(et);
+  close.setHours(16, 30, 0, 0);
+  const diff = Math.max(0, Math.floor((close - et) / 60000));
+  document.getElementById('stat-closes').textContent =
+    diff > 0 ? diff : 'CLOSED';
+}
+
+// ── Tonight picks ──────────────────────────────────────────────────
+function renderTonightPicks(top3) {
+  const el = document.getElementById('tonightTickers');
+  if (!top3.length) { el.innerHTML = '<span style="color:var(--muted);font-size:12px;">No votes yet</span>'; return; }
+  el.innerHTML = top3.map(r =>
+    `<span class="tonight-ticker">${r.ticker}</span>`
+  ).join('');
+}
+
+// ── Submit ticker ──────────────────────────────────────────────────
+async function submitTicker() {
+  const input  = document.getElementById('tickerInput');
+  const btn    = document.getElementById('submitBtn');
+  const ticker = input.value.toUpperCase().trim().replace(/[^A-Z.]/g,'');
+
+  if (!ticker || ticker.length < 1 || ticker.length > 6) {
+    showToast('Enter a valid ticker (e.g. NVDA)', 'error'); return;
+  }
+
+  // Spam guard
+  if (mySubmissions.includes(ticker)) {
+    showToast(`You already submitted ${ticker} today`, 'error'); return;
+  }
+  if (mySubmissions.length >= 5) {
+    showToast('Max 5 submissions per day', 'error'); return;
+  }
+
+  btn.disabled = true; btn.textContent = 'ADDING...';
+
+  if (DEMO_MODE) {
+    await new Promise(r => setTimeout(r, 600));
+    const existing = demoData.find(d => d.ticker === ticker);
+    if (existing) {
+      existing.votes += 1;
+    } else {
+      demoData.push({ticker, votes:1, pct:+(Math.random()*6-3).toFixed(2)});
+      demoData.sort((a,b) => b.votes - a.votes);
+    }
+  } else {
+    try {
+      // Upsert into Supabase — increments vote count
+      await sbFetch('watchlist_votes', {
+        method: 'POST',
+        headers: { 'Prefer': 'resolution=merge-duplicates' },
+        body: JSON.stringify({ ticker, votes: 1 })
+      });
+      // Note: in production use a Postgres function for atomic increment
+    } catch(e) {
+      showToast('Submit failed — please try again', 'error');
+      btn.disabled = false; btn.textContent = '+ SUBMIT';
+      return;
+    }
+  }
+
+  mySubmissions.push(ticker);
+  localStorage.setItem('ws_submissions', JSON.stringify(mySubmissions));
+
+  input.value = '';
+  btn.disabled = false; btn.textContent = '+ SUBMIT';
+  showToast(`${ticker} submitted! ✓`, 'success');
+  await loadLeaderboard();
+}
+
+// ── Cast vote (upvote existing ticker) ────────────────────────────
+async function castVote(ticker, btn) {
+  if (myVotes.includes(ticker)) {
+    showToast('You already voted for ' + ticker, 'error'); return;
+  }
+
+  if (DEMO_MODE) {
+    const row = demoData.find(d => d.ticker === ticker);
+    if (row) row.votes += 1;
+  } else {
+    try {
+      await sbFetch('watchlist_votes?ticker=eq.' + ticker, {
+        method: 'PATCH',
+        body: JSON.stringify({ votes: '(votes + 1)' })  // use RPC in production
+      });
+    } catch(e) {
+      showToast('Vote failed', 'error'); return;
+    }
+  }
+
+  myVotes.push(ticker);
+  localStorage.setItem('ws_votes', JSON.stringify(myVotes));
+  btn.classList.add('voted');
+  const countEl = document.getElementById('votes-' + ticker);
+  if (countEl) countEl.textContent = parseInt(countEl.textContent) + 1;
+  showToast(`Voted for ${ticker}`, 'success');
+}
+
+// ── Toast ──────────────────────────────────────────────────────────
+function showToast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function updateLastUpdated() {
+  document.getElementById('lastUpdate').textContent =
+    'Updated ' + new Date().toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit'});
+}
+
+// ── Keyboard submit ────────────────────────────────────────────────
+document.getElementById('tickerInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitTicker();
+  // Auto-uppercase as you type
+  setTimeout(() => {
+    e.target.value = e.target.value.toUpperCase().replace(/[^A-Z.]/g,'');
+  }, 0);
+});
+
+// ── Live market status badge ───────────────────────────────────────
+function updateMarketStatus() {
+  const badge = document.querySelector('.live-badge');
+  const dot   = document.querySelector('.live-dot');
+  const et    = new Date(new Date().toLocaleString('en-US', {timeZone:'America/New_York'}));
+  const h = et.getHours(), m = et.getMinutes(), day = et.getDay();
+  const isWeekday = day >= 1 && day <= 5;
+  const isOpen    = isWeekday && (h > 9 || (h === 9 && m >= 30)) && h < 16;
+
+  if (isOpen) {
+    badge.style.color = 'var(--green)';
+    badge.style.background = 'var(--green-dim)';
+    badge.style.borderColor = 'var(--green)';
+    dot.style.background = 'var(--green)';
+    badge.lastChild.textContent = ' MARKET OPEN';
+  } else {
+    badge.style.color = 'var(--muted)';
+    badge.style.background = 'var(--card)';
+    badge.style.borderColor = 'var(--border)';
+    dot.style.background = 'var(--muted)';
+    badge.lastChild.textContent = ' MARKET CLOSED';
+  }
+}
+
+// ── Demo mode banner ───────────────────────────────────────────────
+if (DEMO_MODE) {
+  const banner = document.createElement('div');
+  banner.style.cssText = `
+    background:#1a1500;border-bottom:1px solid #4a3800;
+    text-align:center;padding:8px;font-size:11px;
+    font-family:var(--mono);color:#FCD34D;letter-spacing:.06em;
+    position:sticky;top:57px;z-index:99;
+  `;
+  banner.textContent = 'DEMO MODE — Connect Supabase to go live (see SETUP.md)';
+  document.querySelector('header').after(banner);
+}
+
+// ── Init ───────────────────────────────────────────────────────────
+updateMarketStatus();
+loadLeaderboard();
+setInterval(loadLeaderboard, 30000);      // refresh every 30s
+setInterval(updateMarketStatus, 60000);   // check market status every min
+
+</script>
+</body>
+</html>
